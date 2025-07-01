@@ -219,7 +219,7 @@ services:
     depends_on:
       - flink-jobmanager
       - buoy-producer
-    command: bash -c "cd /opt/flink/usrlib/flink_jobs/buoy_job && python main.py"
+    command: bash -c "cd /opt/flink/usrlib/flink_jobs/buoy_job && /opt/flink/bin/flink run -py main.py"
     environment:
       KAFKA_BROKER: kafka:29092
     volumes:
@@ -235,7 +235,7 @@ services:
       - flink-jobmanager
       - satellite-producer
       - minio
-    command: bash -c "cd /opt/flink/usrlib/flink_jobs/satellite_job && python main.py"
+    command: bash -c "cd /opt/flink/usrlib/flink_jobs/satellite_job && /opt/flink/bin/flink run -py main.py"
     environment:
       KAFKA_BROKER: kafka:29092
       MINIO_HOST: minio
@@ -254,7 +254,7 @@ services:
     depends_on:
       - flink-jobmanager
       - water-metrics-producer
-    command: bash -c "cd /opt/flink/usrlib/flink_jobs/water_metrics_job && python main.py"
+    command: bash -c "cd /opt/flink/usrlib/flink_jobs/water_metrics_job && /opt/flink/bin/flink run -py main.py"
     environment:
       KAFKA_BROKER: kafka:29092
     volumes:
@@ -271,7 +271,7 @@ services:
       - buoy-flink-job
       - satellite-flink-job
       - water-metrics-flink-job
-    command: bash -c "cd /opt/flink/usrlib/flink_jobs/hotspot_job && python main.py"
+    command: bash -c "cd /opt/flink/usrlib/flink_jobs/hotspot_job && /opt/flink/bin/flink run -py main.py"
     environment:
       KAFKA_BROKER: kafka:29092
     volumes:

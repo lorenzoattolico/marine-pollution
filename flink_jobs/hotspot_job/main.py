@@ -3,17 +3,16 @@ import json
 import math
 import time
 from datetime import datetime
-from pyflink.common.serialization import SimpleStringSchema
-from pyflink.common.typeinfo import Types
-from pyflink.common.time import Time
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer
+from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common import Types
+from pyflink.common.time import Time
 from pyflink.datastream.window import SlidingProcessingTimeWindows
 from pyflink.datastream.functions import ProcessWindowFunction
-from pyflink.datastream.connectors.kafka import KafkaSource, KafkaSink, KafkaRecordSerializationSchema
-from pyflink.datastream.connectors.kafka import KafkaOffsetResetStrategy
 
 # Configurazione
-KAFKA_BROKERS = os.environ.get('KAFKA_BROKER', 'kafka:29092')
+KAFKA_BROKER = os.environ.get('KAFKA_BROKER', 'kafka:29092')
 GOLD_BUOY_TOPIC = "gold_buoy_data"
 GOLD_SATELLITE_TOPIC = "gold_satellite_data"
 GOLD_WATER_TOPIC = "gold_water_data"
@@ -170,52 +169,45 @@ def main():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)  # Impostato a 1 per semplicità, aumentare in produzione
     
-    # Registrazione dei jar necessari per Kafka
-    env.add_jars("file:///opt/flink/usrlib/flink-connector-kafka-1.17.0.jar",
-                "file:///opt/flink/usrlib/kafka-clients-3.3.2.jar")
+    # Proprietà Kafka
+    properties = {
+        'bootstrap.servers': KAFKA_BROKER,
+        'group.id': 'hotspot-detection-job',
+        'auto.offset.reset': 'latest'
+    }
     
     # Configurazione source Kafka per i dati delle boe processati
-    buoy_source = KafkaSource.builder() \
-        .set_bootstrap_servers(KAFKA_BROKERS) \
-        .set_topics(GOLD_BUOY_TOPIC) \
-        .set_group_id("hotspot-detection-job") \
-        .set_properties({'auto.offset.reset': 'latest'}) \
-        .set_value_only_deserializer(SimpleStringSchema()) \
-        .build()
+    buoy_consumer = FlinkKafkaConsumer(
+        topics=GOLD_BUOY_TOPIC,
+        deserialization_schema=SimpleStringSchema(),
+        properties=properties
+    )
     
     # Configurazione source Kafka per i dati satellitari processati
-    satellite_source = KafkaSource.builder() \
-        .set_bootstrap_servers(KAFKA_BROKERS) \
-        .set_topics(GOLD_SATELLITE_TOPIC) \
-        .set_group_id("hotspot-detection-job") \
-        .set_properties({'auto.offset.reset': 'latest'}) \
-        .set_value_only_deserializer(SimpleStringSchema()) \
-        .build()
+    satellite_consumer = FlinkKafkaConsumer(
+        topics=GOLD_SATELLITE_TOPIC,
+        deserialization_schema=SimpleStringSchema(),
+        properties=properties
+    )
     
     # Configurazione source Kafka per i dati delle stazioni processati
-    water_source = KafkaSource.builder() \
-        .set_bootstrap_servers(KAFKA_BROKERS) \
-        .set_topics(GOLD_WATER_TOPIC) \
-        .set_group_id("hotspot-detection-job") \
-        .set_properties({'auto.offset.reset': 'latest'}) \
-        .set_value_only_deserializer(SimpleStringSchema()) \
-        .build()
+    water_consumer = FlinkKafkaConsumer(
+        topics=GOLD_WATER_TOPIC,
+        deserialization_schema=SimpleStringSchema(),
+        properties=properties
+    )
     
     # Configurazione sink Kafka per gli hotspot
-    hotspot_sink = KafkaSink.builder() \
-        .set_bootstrap_servers(KAFKA_BROKERS) \
-        .set_record_serializer(
-            KafkaRecordSerializationSchema.builder()
-                .set_topic(HOTSPOT_TOPIC)
-                .set_value_serialization_schema(SimpleStringSchema())
-                .build()
-        ) \
-        .build()
+    hotspot_producer = FlinkKafkaProducer(
+        topic=HOTSPOT_TOPIC,
+        serialization_schema=SimpleStringSchema(),
+        producer_config=properties
+    )
     
-    # Creazione dei data stream e unione
-    buoy_stream = env.from_source(buoy_source, watermark_strategy=None, source_name="Buoy Source")
-    satellite_stream = env.from_source(satellite_source, watermark_strategy=None, source_name="Satellite Source")
-    water_stream = env.from_source(water_source, watermark_strategy=None, source_name="Water Source")
+    # Creazione dei data stream
+    buoy_stream = env.add_source(buoy_consumer, source_name="Buoy Source")
+    satellite_stream = env.add_source(satellite_consumer, source_name="Satellite Source")
+    water_stream = env.add_source(water_consumer, source_name="Water Source")
     
     # Unisci tutti i stream in uno solo
     combined_stream = buoy_stream.union(satellite_stream, water_stream)
@@ -228,7 +220,7 @@ def main():
         .process(HotspotDetector(), output_type=Types.STRING())
     
     # Invio degli hotspot al sink
-    windowed_stream.sink_to(hotspot_sink)
+    windowed_stream.add_sink(hotspot_producer)
     
     # Esecuzione del job
     env.execute("Pollution Hotspot Detection Job")
