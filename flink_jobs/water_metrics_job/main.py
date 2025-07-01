@@ -28,7 +28,7 @@ def main():
         .set_bootstrap_servers(KAFKA_BROKERS) \
         .set_topics(INPUT_TOPIC) \
         .set_group_id("water-metrics-flink-job") \
-        .set_starting_offsets(KafkaOffsetResetStrategy.LATEST) \
+        .set_properties({'auto.offset.reset': 'latest'}) \
         .set_value_only_deserializer(SimpleStringSchema()) \
         .build()
     

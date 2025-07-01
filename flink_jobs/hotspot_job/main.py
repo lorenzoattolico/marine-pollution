@@ -179,7 +179,7 @@ def main():
         .set_bootstrap_servers(KAFKA_BROKERS) \
         .set_topics(GOLD_BUOY_TOPIC) \
         .set_group_id("hotspot-detection-job") \
-        .set_starting_offsets(KafkaOffsetResetStrategy.LATEST) \
+        .set_properties({'auto.offset.reset': 'latest'}) \
         .set_value_only_deserializer(SimpleStringSchema()) \
         .build()
     
@@ -188,7 +188,7 @@ def main():
         .set_bootstrap_servers(KAFKA_BROKERS) \
         .set_topics(GOLD_SATELLITE_TOPIC) \
         .set_group_id("hotspot-detection-job") \
-        .set_starting_offsets(KafkaOffsetResetStrategy.LATEST) \
+        .set_properties({'auto.offset.reset': 'latest'}) \
         .set_value_only_deserializer(SimpleStringSchema()) \
         .build()
     
@@ -197,7 +197,7 @@ def main():
         .set_bootstrap_servers(KAFKA_BROKERS) \
         .set_topics(GOLD_WATER_TOPIC) \
         .set_group_id("hotspot-detection-job") \
-        .set_starting_offsets(KafkaOffsetResetStrategy.LATEST) \
+        .set_properties({'auto.offset.reset': 'latest'}) \
         .set_value_only_deserializer(SimpleStringSchema()) \
         .build()
     
